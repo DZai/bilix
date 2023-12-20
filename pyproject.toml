@@ -48,7 +48,7 @@ serve = [
 bilix = "bilix.cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/HFrost0/bilix"
+Homepage = "https://github.com/DZai/bilix"
 
 [tool.hatch.version]
 path = "bilix/__init__.py"
