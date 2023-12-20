@@ -65,7 +65,7 @@ class DownloaderBilibili(BaseDownloaderPart):
         self.v_sema = asyncio.Semaphore(video_concurrency)
         self.api_sema = asyncio.Semaphore(video_concurrency)
         self.hierarchy = hierarchy
-        self.title_overflow = 50
+        self.title_overflow = 40
 
     @classmethod
     def parse_url(cls, url: str):
@@ -300,7 +300,7 @@ class DownloaderBilibili(BaseDownloaderPart):
         except (APIResourceError, APIUnsupportedError) as e:
             return self.logger.warning(e)
         if self.hierarchy and len(video_info.pages) > 1:
-            path /= video_info.title
+            path /= video_info.title[:self.title_overflow]
             path.mkdir(parents=True, exist_ok=True)
         cors = [self.get_video(p.p_url, path=path,
                                quality=quality, image=image, subtitle=subtitle, dm=dm,
@@ -335,11 +335,12 @@ class DownloaderBilibili(BaseDownloaderPart):
                     video_info = await api.get_video_info(self.client, url)
                 except (APIResourceError, APIUnsupportedError) as e:
                     return self.logger.warning(e)
-            p_name = legal_title(video_info.pages[video_info.p].p_name)
+            p_name = legal_title(video_info.pages[video_info.p].p_name)[:self.title_overflow]
             task_name = legal_title(video_info.h1_title, p_name)
             # if title is too long, use p_name as base_name
-            base_name = p_name if len(video_info.h1_title) > self.title_overflow and self.hierarchy and p_name else \
-                task_name
+            # base_name = p_name if len(video_info.h1_title) > self.title_overflow and self.hierarchy and p_name else \
+            base_name = p_name if self.hierarchy and p_name else \
+                task_name[:self.title_overflow]
             media_name = base_name if not time_range else legal_title(base_name, *map(t2s, time_range))
             media_cors = []
             task_id = await self.progress.add_task(total=None, description=task_name)
@@ -498,7 +499,7 @@ class DownloaderBilibili(BaseDownloaderPart):
         if not video_info:
             video_info = await api.get_video_info(self.client, url)
         p, cid = video_info.p, video_info.cid
-        p_name = video_info.pages[p].p_name
+        p_name = video_info.pages[p].p_name[:self.title_overflow]
         try:
             subtitles = await api.get_subtitle_info(self.client, video_info.bvid, cid)
         except APIError as e:
@@ -509,7 +510,7 @@ class DownloaderBilibili(BaseDownloaderPart):
             if len(video_info.h1_title) > self.title_overflow and self.hierarchy and p_name:
                 file_name = legal_title(p_name, sub_name)
             else:
-                file_name = legal_title(video_info.h1_title, p_name, sub_name)
+                file_name = legal_title(video_info.h1_title[:self.title_overflow], p_name, sub_name)
             cors.append(self.get_static(sub_url, path / file_name, convert_func=convert_func))
         paths = await asyncio.gather(*cors)
         return paths
